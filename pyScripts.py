@@ -21,6 +21,7 @@ from PIL import Image, ImageOps
 DEFAULTS = {
     "width_cm": 8.0,
     "height_cm": 6.0,
+    "allow_portrait": False,
     "dpi": 450,
     "jpeg_quality": 95,
     "first_image_number": 100,
@@ -28,6 +29,15 @@ DEFAULTS = {
 }
 
 BROWSER_STAGE_DIR = Path("/tmp/photo_log_stage")
+
+# Keep the existing landscape Word drawing dimensions exactly as-is.
+# Portrait photos use the same displayed height and a 4.5:6 width:height ratio.
+LANDSCAPE_WIDTH_EMU = 2876550
+LANDSCAPE_HEIGHT_EMU = 2162175
+PORTRAIT_WIDTH_CM = 4.5
+PORTRAIT_HEIGHT_CM = 6.0
+PORTRAIT_WIDTH_EMU = round(LANDSCAPE_HEIGHT_EMU * PORTRAIT_WIDTH_CM / PORTRAIT_HEIGHT_CM)
+PORTRAIT_HEIGHT_EMU = LANDSCAPE_HEIGHT_EMU
 
 DOCUMENT_DOT_XML_TEMPLATE = (
     """
@@ -185,7 +195,7 @@ PHOTO_TABLE_ROW_TEMPLATE = (
                 <w:drawing>
                     <wp:inline distT="0" distB="0" distL="0" distR="0" wp14:anchorId="522C835A"
                         wp14:editId="49075CE8">
-                        <wp:extent cx="2876550" cy="2162175" />
+                        <wp:extent cx="{PHOTO_WIDTH_EMU_1}" cy="{PHOTO_HEIGHT_EMU_1}" />
                         <wp:effectExtent l="0" t="0" r="0" b="9525" />
                         <wp:docPr id="1854359591" name="Picture 8" />
                         <wp:cNvGraphicFramePr>
@@ -216,7 +226,7 @@ PHOTO_TABLE_ROW_TEMPLATE = (
                                     <pic:spPr bwMode="auto">
                                         <a:xfrm>
                                             <a:off x="0" y="0" />
-                                            <a:ext cx="2876550" cy="2162175" />
+                                            <a:ext cx="{PHOTO_WIDTH_EMU_1}" cy="{PHOTO_HEIGHT_EMU_1}" />
                                         </a:xfrm>
                                         <a:prstGeom prst="rect">
                                             <a:avLst />
@@ -255,7 +265,7 @@ PHOTO_TABLE_ROW_TEMPLATE = (
                 <w:drawing>
                     <wp:inline distT="0" distB="0" distL="0" distR="0" wp14:anchorId="3DCFE195"
                         wp14:editId="1608C0E8">
-                        <wp:extent cx="2876550" cy="2162175" />
+                        <wp:extent cx="{PHOTO_WIDTH_EMU_2}" cy="{PHOTO_HEIGHT_EMU_2}" />
                         <wp:effectExtent l="0" t="0" r="0" b="9525" />
                         <wp:docPr id="1196090353" name="Picture 9" />
                         <wp:cNvGraphicFramePr>
@@ -291,7 +301,7 @@ PHOTO_TABLE_ROW_TEMPLATE = (
                                     <pic:spPr bwMode="auto">
                                         <a:xfrm>
                                             <a:off x="0" y="0" />
-                                            <a:ext cx="2876550" cy="2162175" />
+                                            <a:ext cx="{PHOTO_WIDTH_EMU_2}" cy="{PHOTO_HEIGHT_EMU_2}" />
                                         </a:xfrm>
                                         <a:prstGeom prst="rect">
                                             <a:avLst />
@@ -560,6 +570,18 @@ def build_photo_relationship(rel_id: str, image_name: str) -> str:
 
     return relationship_xml.replace(old_id, new_id, 1)
 
+def _word_extent_for_photo(photo_entry: dict) -> tuple[int, int]:
+    """Return the Word drawing size for one processed photo.
+
+    Landscape output preserves the original template dimensions. Portrait output
+    keeps the exact same displayed height and narrows the image to the requested
+    4.5 cm : 6 cm aspect ratio.
+    """
+    if str(photo_entry.get("orientation", "landscape")).lower() == "portrait":
+        return PORTRAIT_WIDTH_EMU, PORTRAIT_HEIGHT_EMU
+    return LANDSCAPE_WIDTH_EMU, LANDSCAPE_HEIGHT_EMU
+
+
 def build_photo_table_rows(photo_entries: list[dict]) -> str:
     """
     Build one PHOTO_TABLE_ROW_TEMPLATE block per pair of photos.
@@ -570,9 +592,16 @@ def build_photo_table_rows(photo_entries: list[dict]) -> str:
         photo_1 = photo_entries[index]
         photo_2 = photo_entries[index + 1] if index + 1 < len(photo_entries) else None
 
+        width_1, height_1 = _word_extent_for_photo(photo_1)
+        width_2, height_2 = _word_extent_for_photo(photo_2 or {})
+
         row_xml = PHOTO_TABLE_ROW_TEMPLATE.format(
             PHOTO_REL_ID_1=photo_1["rel_id"],
             PHOTO_REL_ID_2=photo_2["rel_id"] if photo_2 else "",
+            PHOTO_WIDTH_EMU_1=width_1,
+            PHOTO_HEIGHT_EMU_1=height_1,
+            PHOTO_WIDTH_EMU_2=width_2,
+            PHOTO_HEIGHT_EMU_2=height_2,
         )
 
         row_xml = _replace_caption_text(
@@ -602,11 +631,22 @@ def _number(value, label, minimum, maximum, integer=False):
     return number
 
 
+def _bool(value, default=False):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def normalize_settings(settings=None):
     settings = dict(DEFAULTS if settings is None else {**DEFAULTS, **settings})
     return {
         "width_cm": _number(settings.get("width_cm"), "Width", 0.5, 50.0),
         "height_cm": _number(settings.get("height_cm"), "Height", 0.5, 50.0),
+        "allow_portrait": _bool(settings.get("allow_portrait"), False),
         "dpi": _number(settings.get("dpi"), "DPI", 72, 1200, integer=True),
         "jpeg_quality": _number(settings.get("jpeg_quality"), "JPEG quality", 1, 100, integer=True),
         "first_image_number": _number(settings.get("first_image_number"), "First image number", 1, 999999, integer=True),
@@ -637,18 +677,30 @@ def browser_clear_stage():
 
 
 def browser_process_image(input_path, output_path, settings_json):
-    """Process one original photo and keep only the resized JPEG in temporary storage."""
+    """Process one original photo and keep only the resized JPEG in temporary storage.
+
+    With portrait support disabled, behavior is unchanged: every source is
+    centre-cropped to the configured landscape dimensions. With portrait support
+    enabled, EXIF-corrected portrait sources are instead centre-cropped to
+    exactly 4.5 cm wide by 6 cm high.
+    """
     settings = normalize_settings(json.loads(settings_json))
-    width_px = round((settings["width_cm"] / 2.54) * settings["dpi"])
-    height_px = round((settings["height_cm"] / 2.54) * settings["dpi"])
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with Image.open(input_path) as image:
         source_format = image.format or "Unknown"
-        source_size = image.size
         image = ImageOps.exif_transpose(image)
+        source_size = image.size
+        source_orientation = "portrait" if image.height > image.width else "landscape"
+        preserve_portrait = settings["allow_portrait"] and source_orientation == "portrait"
+
+        target_width_cm = PORTRAIT_WIDTH_CM if preserve_portrait else settings["width_cm"]
+        target_height_cm = PORTRAIT_HEIGHT_CM if preserve_portrait else settings["height_cm"]
+        width_px = round((target_width_cm / 2.54) * settings["dpi"])
+        height_px = round((target_height_cm / 2.54) * settings["dpi"])
+
         image = image.convert("RGB")
         cropped_image = ImageOps.fit(
             image,
@@ -670,6 +722,10 @@ def browser_process_image(input_path, output_path, settings_json):
         "source_width_px": source_size[0],
         "source_height_px": source_size[1],
         "source_format": source_format,
+        "source_orientation": source_orientation,
+        "orientation": "portrait" if preserve_portrait else "landscape",
+        "display_width_cm": target_width_cm,
+        "display_height_cm": target_height_cm,
         "output_bytes": output_size,
     })
 
@@ -694,6 +750,7 @@ def browser_build_xml(request_json):
             "image_name": str(raw.get("image_name") or f"image{image_number}.jpg"),
             "description": description,
             "rel_id": str(raw.get("rel_id") or f"rId{rel_number}"),
+            "orientation": "portrait" if str(raw.get("orientation", "landscape")).lower() == "portrait" else "landscape",
         })
         image_number += 1
         rel_number += 1

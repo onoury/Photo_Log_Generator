@@ -1,4 +1,4 @@
-/* Photo Log Builder v1.4
+/* Photo Log Builder v1.5
  * Local static browser app. Original photos remain browser File references.
  * Pyodide/Pillow processes one source photo at a time. Processed JPEGs can be
  * previewed in a photo-log layout, then Python packages the Word template into
@@ -526,6 +526,7 @@
     if (!defaults) return;
     $('width-cm').value = defaults.width_cm;
     $('height-cm').value = defaults.height_cm;
+    $('allow-portrait').checked = !!defaults.allow_portrait;
     $('dpi').value = defaults.dpi;
     $('jpeg-quality').value = defaults.jpeg_quality;
     $('first-image-number').value = defaults.first_image_number;
@@ -538,6 +539,7 @@
     return {
       width_cm: $('width-cm').value,
       height_cm: $('height-cm').value,
+      allow_portrait: $('allow-portrait').checked,
       dpi: $('dpi').value,
       jpeg_quality: $('jpeg-quality').value,
       first_image_number: $('first-image-number').value,
@@ -546,11 +548,19 @@
   }
   function updateSettingsNote() {
     const w = Number($('width-cm').value), h = Number($('height-cm').value), dpi = Number($('dpi').value);
+    const portrait = $('allow-portrait').checked;
     if (w > 0 && h > 0 && dpi > 0) {
       const pxW = Math.round(w / 2.54 * dpi), pxH = Math.round(h / 2.54 * dpi);
-      $('settings-note').textContent = `Centered crop · ${pxW.toLocaleString()} × ${pxH.toLocaleString()} px · EXIF orientation correction · RGB JPEG output.`;
+      const portraitPxW = Math.round(4.5 / 2.54 * dpi), portraitPxH = Math.round(6 / 2.54 * dpi);
+      $('portrait-mode-label').textContent = portrait
+        ? 'On · portraits 4.5 × 6 cm'
+        : 'Off · all photos use landscape output';
+      $('settings-note').textContent = portrait
+        ? `Landscape: ${w} × ${h} cm (${pxW.toLocaleString()} × ${pxH.toLocaleString()} px) · Portrait: 4.5 × 6 cm (${portraitPxW.toLocaleString()} × ${portraitPxH.toLocaleString()} px) · EXIF orientation correction · centered crop.`
+        : `Centered crop · ${pxW.toLocaleString()} × ${pxH.toLocaleString()} px · EXIF orientation correction · RGB JPEG output.`;
     }
   }
+
 
   function updateOutputModeLabel() {
     const streaming = $('stream-output').checked;
@@ -571,7 +581,7 @@
     $('add-row').disabled = state.working;
     $('preview').disabled = !canRun;
     $('generate').disabled = !canRun;
-    for (const id of ['width-cm','height-cm','dpi','jpeg-quality','first-image-number','first-rel-number','output-name','preview-mode','stream-output']) {
+    for (const id of ['width-cm','height-cm','dpi','jpeg-quality','first-image-number','first-rel-number','output-name','preview-mode','stream-output','allow-portrait']) {
       const el = $(id);
       if (el) el.disabled = (id !== 'output-name' && id !== 'preview-mode' && id !== 'stream-output' && !state.ready) || state.working;
     }
@@ -768,6 +778,7 @@
     return JSON.stringify({
       width_cm: validatedSettings.width_cm,
       height_cm: validatedSettings.height_cm,
+      allow_portrait: validatedSettings.allow_portrait,
       dpi: validatedSettings.dpi,
       jpeg_quality: validatedSettings.jpeg_quality,
       first_image_number: validatedSettings.first_image_number,
@@ -856,6 +867,10 @@
           output_bytes: meta.output_bytes || 0,
           width_px: meta.width_px,
           height_px: meta.height_px,
+          source_orientation: meta.source_orientation || 'landscape',
+          orientation: meta.orientation || 'landscape',
+          display_width_cm: meta.display_width_cm,
+          display_height_cm: meta.display_height_cm,
           blob,
           fullUrl,
           smallUrl: null,
@@ -902,10 +917,11 @@
     $('preview-pages').replaceChildren();
     $('hide-preview').hidden = false;
 
+    const portraitCount = items.filter(item => item.orientation === 'portrait').length;
     const metaText = [
       `${fmtInt(items.length)} processed photo${items.length === 1 ? '' : 's'}`,
+      portraitCount ? `${fmtInt(portraitCount)} portrait` : 'landscape output',
       mode === 'full' ? 'full-resolution preview' : 'smaller preview',
-      `${items[0].width_px.toLocaleString()} × ${items[0].height_px.toLocaleString()} px processed image size`,
       'approximate photo-table pagination (3 rows per preview page)',
     ];
     $('preview-meta').textContent = metaText.join(' · ');
@@ -943,7 +959,7 @@
           const cell = document.createElement('div');
           cell.className = 'preview-cell';
           cell.innerHTML = `
-            <div class="preview-photo"><img src="${src}" alt="Preview photo ${photoCounter}" loading="lazy" decoding="async"></div>
+            <div class="preview-photo${item.orientation === 'portrait' ? ' portrait' : ''}"><img src="${src}" alt="Preview photo ${photoCounter}" loading="lazy" decoding="async"></div>
             <div class="preview-caption">Photo ${photoCounter} ${esc(caption)}</div>`;
           row.append(cell);
         }
@@ -1041,6 +1057,7 @@
         description: item.description,
         image_name: item.image_name,
         rel_id: item.rel_id,
+        orientation: item.orientation || 'landscape',
         output_bytes: item.output_bytes,
       }));
 
@@ -1211,6 +1228,11 @@
   }
   $('reset-settings').addEventListener('click', () => {
     applyDefaults(state.options?.defaults);
+    invalidateProcessedArtifacts();
+  });
+
+  $('allow-portrait').addEventListener('change', () => {
+    updateSettingsNote();
     invalidateProcessedArtifacts();
   });
 

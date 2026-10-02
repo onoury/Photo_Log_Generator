@@ -25,58 +25,29 @@
   </header>
 
   <main>
-    <section class="panel source-panel" aria-labelledby="source-title">
-      <div class="section-heading">
-        <div class="heading-line"><span class="step">01</span><h2 id="source-title">Source Files</h2></div>
-        <span class="hint">Select a photo folder and upload the editable photo schedule</span>
-      </div>
-      <div class="source-grid">
-        <label class="file-tile" id="photos-drop">
-          <span class="file-icon" aria-hidden="true">▧</span>
-          <span class="file-copy"><strong id="photos-action">Select photo folder</strong><small id="photos-name">No folder selected</small></span>
-          <input id="photos-input" type="file" multiple webkitdirectory directory aria-label="Select photo folder">
-        </label>
-
-        <label class="file-tile" id="csv-drop">
-          <span class="file-icon" aria-hidden="true">↥</span>
-          <span class="file-copy"><strong id="csv-action">Upload CSV</strong><small id="csv-name">Photos_and_Description.csv</small></span>
-          <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="Upload or replace CSV">
-        </label>
-
-        <div class="template-card">
-          <span class="template-label">Word photo log template</span>
-          <strong id="template-name">Word Photo Log Organs - Clean.zip</strong>
-          <small>Fixed app template · automatically reused for every photo log</small>
-        </div>
-      </div>
-      <div class="source-summary" id="source-summary">
-        <span><b>Photos</b> —</span><span><b>Folder size</b> —</span><span><b>CSV rows</b> —</span>
-      </div>
-    </section>
-
-    <div id="message" class="message" role="alert" hidden></div>
-
-    <section class="settings-preview-grid">
-      <section class="panel settings-panel" aria-labelledby="settings-title">
+    <section class="source-validation-grid">
+      <section class="panel source-panel" aria-labelledby="source-title">
         <div class="section-heading">
-          <div class="heading-line"><span class="step">02</span><h2 id="settings-title">Output Settings</h2></div>
-          <button id="reset-settings" class="text-button" type="button" disabled>Reset defaults</button>
+          <div class="heading-line"><span class="step">01</span><h2 id="source-title">Source Files</h2></div>
+          <span class="hint">Select a photo folder and upload the editable photo schedule</span>
         </div>
-        <div class="settings-grid">
-          <label class="field">Width <span class="input-unit"><input id="width-cm" type="number" min="0.5" max="50" step="0.1" value="8" disabled><span>cm</span></span></label>
-          <label class="field">Height <span class="input-unit"><input id="height-cm" type="number" min="0.5" max="50" step="0.1" value="6" disabled><span>cm</span></span></label>
-          <label class="field">Resolution <span class="input-unit"><input id="dpi" type="number" min="72" max="1200" step="1" value="450" disabled><span>DPI</span></span></label>
-          <label class="field">JPEG quality <span class="input-unit"><input id="jpeg-quality" type="number" min="1" max="100" step="1" value="95" disabled><span>%</span></span></label>
-          <label class="field output-name-field">Output filename <span class="filename-input"><input id="output-name" type="text" value="Photo_Log" maxlength="120"><span>.docx</span></span></label>
+        <div class="source-grid">
+          <label class="file-tile" id="photos-drop">
+            <span class="file-icon" aria-hidden="true">▧</span>
+            <span class="file-copy"><strong id="photos-action">Select photo folder</strong><small id="photos-name">No folder selected</small></span>
+            <input id="photos-input" type="file" multiple webkitdirectory directory aria-label="Select photo folder">
+          </label>
+
+          <label class="file-tile" id="csv-drop">
+            <span class="file-icon" aria-hidden="true">↥</span>
+            <span class="file-copy"><strong id="csv-action">Upload CSV</strong><small id="csv-name">Photos_and_Description.csv</small></span>
+            <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="Upload or replace CSV">
+          </label>
         </div>
-        <details class="advanced-settings">
-          <summary>Advanced Word package settings</summary>
-          <div class="advanced-grid">
-            <label class="field">First image number <input id="first-image-number" type="number" min="1" max="999999" step="1" value="100" disabled></label>
-            <label class="field">First relationship ID <input id="first-rel-number" type="number" min="17" max="999999" step="1" value="100" disabled></label>
-          </div>
-        </details>
-        <div id="settings-note" class="settings-note">EXIF correction · centered crop · RGB JPEG output</div>
+        <span id="template-name" hidden>Word Photo Log Organs - Clean.zip</span>
+        <div class="source-summary" id="source-summary">
+          <span><b>Photos</b> —</span><span><b>Folder size</b> —</span><span><b>CSV rows</b> —</span>
+        </div>
       </section>
 
       <section class="panel output-preview-panel" aria-labelledby="output-preview-title">
@@ -94,9 +65,36 @@
       </section>
     </section>
 
-    <section class="action-grid">
+    <div id="message" class="message" role="alert" hidden></div>
 
+    <section class="panel settings-panel settings-full-row" aria-labelledby="settings-title">
+      <div class="section-heading">
+        <div class="heading-line"><span class="step">02</span><h2 id="settings-title">Output Settings</h2></div>
+        <button id="reset-settings" class="text-button" type="button" disabled>Reset defaults</button>
+      </div>
+      <div class="settings-grid">
+        <label class="field">Width <span class="input-unit"><input id="width-cm" type="number" min="0.5" max="50" step="0.1" value="8" disabled><span>cm</span></span></label>
+        <label class="field">Height <span class="input-unit"><input id="height-cm" type="number" min="0.5" max="50" step="0.1" value="6" disabled><span>cm</span></span></label>
+        <label class="field">Resolution <span class="input-unit"><input id="dpi" type="number" min="72" max="1200" step="1" value="450" disabled><span>DPI</span></span></label>
+        <label class="field">JPEG quality <span class="input-unit"><input id="jpeg-quality" type="number" min="1" max="100" step="1" value="95" disabled><span>%</span></span></label>
+        <label class="field output-name-field">Output filename <span class="filename-input"><input id="output-name" type="text" value="Photo_Log" maxlength="120"><span>.docx</span></span></label>
+        <label class="output-toggle portrait-toggle" title="Keep portrait source photos portrait instead of cropping them to landscape">
+          <span class="toggle-copy"><b>Preserve portrait photos</b><small id="portrait-mode-label">Off · all photos use landscape output</small></span>
+          <input id="allow-portrait" type="checkbox" aria-label="Preserve portrait photos at 4.5 centimetres wide">
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+      </div>
+      <!-- <details class="advanced-settings">
+        <summary>Advanced Word package settings</summary>
+        <div class="advanced-grid">
+          <label class="field">First image number <input id="first-image-number" type="number" min="1" max="999999" step="1" value="100" disabled></label>
+          <label class="field">First relationship ID <input id="first-rel-number" type="number" min="17" max="999999" step="1" value="100" disabled></label>
+        </div>
+      </details> -->
+      <div id="settings-note" class="settings-note">EXIF correction · centered crop · RGB JPEG output</div>
+    </section>
 
+    <section class="action-grid action-grid-swapped">
       <section class="panel create-panel" aria-labelledby="create-title">
         <div class="create-header">
           <div class="create-title-wrap">
@@ -121,6 +119,7 @@
         </div>
         <div id="result-summary" class="create-result" hidden></div>
       </section>
+
       <section class="panel preview-action-panel" aria-labelledby="preview-controls-title">
         <div class="section-heading compact-heading">
           <div class="heading-line"><span class="step">04</span><h2 id="preview-controls-title">Generate Preview</h2></div>
@@ -138,7 +137,6 @@
           </div>
         </div>
       </section>
-
     </section>
 
     <section class="lower-grid">
@@ -176,7 +174,7 @@
     </section>
 
     <footer class="page-footer">
-      <span>Photo Log Builder v1.4 <span class="footer-sep">/</span> Local browser workspace</span>
+      <span>Photo Log Builder v1.5 <span class="footer-sep">/</span> Local browser workspace</span>
       <details>
         <summary>How to run & output modes</summary>
         <p>Keep <code>index.html</code>, <code>styles.css</code>, <code>jsScripts.js</code>, <code>pyScripts.py</code>, and <code>Word Photo Log Organs - Clean.zip</code> in one folder. Run <code>python -m http.server 8000</code> in that folder and open <code>http://localhost:8000</code>.</p>
